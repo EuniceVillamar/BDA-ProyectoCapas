@@ -30,7 +30,7 @@ El proyecto está organizado en tres capas principales:
 
 1. Clonar el repositorio:
 ```bash
-git clone [URL_DEL_REPOSITORIO]
+git clone https://github.com/EuniceVillamar/BDA-ProyectoCapas.git
 cd ProyectoCapas
 ```
 
@@ -50,19 +50,6 @@ cd ProyectoCapas
 
 ## Dependencias Principales
 
-- iText7 (para generación de PDFs)
 - System.Data.SqlClient
 - Microsoft.Extensions.DependencyInjection
 - Newtonsoft.Json
-
-## Contribuir
-
-1. Hacer fork del repositorio
-2. Crear una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit a tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abrir un Pull Request
-
-## Licencia
-
-Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para más detalles. 
