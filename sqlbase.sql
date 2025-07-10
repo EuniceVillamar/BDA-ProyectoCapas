@@ -10,7 +10,10 @@ ALTER DATABASE DB_Reparaciones SET AUTO_UPDATE_STATISTICS ON;
 ALTER DATABASE DB_Reparaciones SET TRUSTWORTHY ON;
 
 PRINT 'Configuración de base de datos completada.';
--- Eliminamos las tablas si ya existen
+
+-- ================================
+-- ELIMINACIÓN DE TABLAS EXISTENTES
+-- ================================
 DROP TABLE IF EXISTS tb_tecnico_equipo;
 DROP TABLE IF EXISTS tb_reparacion;
 DROP TABLE IF EXISTS tb_equipo_Movil;
@@ -19,7 +22,9 @@ DROP TABLE IF EXISTS tb_cliente;
 DROP TABLE IF EXISTS tb_reparacion_repuestos;
 DROP TABLE IF EXISTS tb_repuestos;
 
--- Creaci n de tablas
+-- ================================
+-- CREACIÓN DE TABLAS
+-- ================================
 CREATE TABLE tb_cliente (
     id_cliente INT IDENTITY(1,1) PRIMARY KEY, 
     cedula_cliente VARCHAR(10) UNIQUE NOT NULL, 
@@ -57,11 +62,10 @@ CREATE TABLE tb_reparacion (
     fecha_entrega VARCHAR(10) DEFAULT '13/01/2025',
     id_equipo INT, 
     id_cliente INT,
-	
     FOREIGN KEY (cedula_cliente) REFERENCES tb_cliente(cedula_cliente),
     FOREIGN KEY (imei_celular) REFERENCES tb_equipo_Movil(imei_celular),
     FOREIGN KEY (id_equipo) REFERENCES tb_equipo_Movil(id_equipo),
-    FOREIGN KEY (id_cliente) REFERENCES tb_cliente(id_cliente),
+    FOREIGN KEY (id_cliente) REFERENCES tb_cliente(id_cliente)
 );
 
 CREATE TABLE tb_reparacion_tecnico (
@@ -69,8 +73,9 @@ CREATE TABLE tb_reparacion_tecnico (
     id_tecnico INT NOT NULL,
     PRIMARY KEY (id_equipo, id_tecnico),
     FOREIGN KEY (id_equipo) REFERENCES tb_equipo_Movil(id_equipo),
-    FOREIGN KEY (id_tecnico) REFERENCES tb_tecnico(id_tecnico),
+    FOREIGN KEY (id_tecnico) REFERENCES tb_tecnico(id_tecnico)
 );
+
 CREATE TABLE tb_tecnico_equipo (
     id_tecnico INT, 
     id_equipo INT,  
@@ -80,7 +85,6 @@ CREATE TABLE tb_tecnico_equipo (
     estado VARCHAR(20) DEFAULT 'En revision',
     fecha_ingreso DATETIME DEFAULT GETDATE(),
     id_cliente INT,
-
     PRIMARY KEY (cedula_tecnico, imei_celular),
     FOREIGN KEY (imei_celular) REFERENCES tb_equipo_Movil(imei_celular) ON DELETE NO ACTION,
     FOREIGN KEY (id_tecnico) REFERENCES tb_tecnico(id_tecnico) ON DELETE NO ACTION,
@@ -88,8 +92,6 @@ CREATE TABLE tb_tecnico_equipo (
     FOREIGN KEY (cedula_tecnico) REFERENCES tb_tecnico(cedula_tecnico) ON DELETE NO ACTION
 );
 
-
--- Creación de la tabla factura
 CREATE TABLE tb_factura (
     id_factura INT IDENTITY(1,1) PRIMARY KEY,
     id_cliente INT,
@@ -111,12 +113,13 @@ CREATE TABLE tb_factura (
     descripcion_reparacion VARCHAR(255),
     costo DECIMAL(10,2),
     fecha_entrega VARCHAR(10),
-	tecnicos NVARCHAR(MAX),
+    tecnicos NVARCHAR(MAX),
     FOREIGN KEY (id_cliente) REFERENCES tb_cliente(id_cliente) ON DELETE NO ACTION,
     FOREIGN KEY (id_tecnico) REFERENCES tb_tecnico(id_tecnico) ON DELETE NO ACTION,
     FOREIGN KEY (id_equipo) REFERENCES tb_equipo_Movil(id_equipo) ON DELETE NO ACTION,
     FOREIGN KEY (id_reparacion) REFERENCES tb_reparacion(id_reparacion) ON DELETE NO ACTION
 );
+
 CREATE TABLE tb_repuestos (
     id_repuesto INT IDENTITY(1,1) PRIMARY KEY,
     descripcion_repuesto NVARCHAR(255) NOT NULL,
@@ -130,6 +133,7 @@ CREATE TABLE tb_servicios (
     descripcion_servicio NVARCHAR(255) NOT NULL,
     costo_servicio DECIMAL(10,2) NOT NULL CHECK (costo_servicio >= 0)
 );
+
 CREATE TABLE tb_reparacion_repuestos (
     id_equipo INT NOT NULL,
     id_repuesto INT NOT NULL,
@@ -138,111 +142,15 @@ CREATE TABLE tb_reparacion_repuestos (
     FOREIGN KEY (id_repuesto) REFERENCES tb_repuestos(id_repuesto)
 );
 
--- Inserciones de datos en la tabla de clientes
-INSERT INTO tb_cliente (cedula_cliente, nombre_cliente, telefono_cliente, email_cliente)
-VALUES 
-('0912345678', 'Juan Pérez', '0987654321', 'juan.perez@gmail.com'),
-('0923456789', 'Ana Torres', '0998765432', 'ana.torres@gmail.com'),
-('0911122233', 'Carlos López', '0991122334', 'carlos.lopez@gmail.com'),
-('0922233344', 'Daniela Martínez', '0992233445', 'daniela.martinez@gmail.com');
-
--- Asegúrate de que los técnicos estén previamente insertados
-INSERT INTO tb_cliente (cedula_cliente, nombre_cliente, telefono_cliente, email_cliente)
-VALUES ('0945678901', 'Cliente Ejemplo', '0990000000', 'cliente.ejemplo@gmail.com');
--- Inserciones de datos en la tabla de técnicos
-INSERT INTO tb_tecnico (cedula_tecnico, nombre_tecnico, telefono_tecnico, email_tecnico)
-VALUES 
-('0934567890', 'Luis Rivera', '0999123456', 'luis.rivera@gmail.com'),
-('0945678901', 'María Sánchez', '0987654321', 'maria.sanchez@gmail.com'),
-('0956789012', 'Javier Torres', '0993344556', 'javier.torres@gmail.com');
-
--- Asegúrate de que el técnico esté insertado antes de asociarlo al equipo
-INSERT INTO tb_tecnico (cedula_tecnico, nombre_tecnico, telefono_tecnico, email_tecnico)
-VALUES ('0989012345', 'Carlos Gómez', '0998765432', 'carlos.gomez@gmail.com');
--- Inserciones de datos en la tabla de equipos móviles
-INSERT INTO tb_equipo_Movil (imei_celular, cedula_cliente, descripcion_equipo, estado)
-VALUES 
-('123456789012345', '0912345678', 'Galaxy 12', 'En revision'),
-('234567890123456', '0923456789', 'Nokia L3150', 'Reparado'),
-('345678901234567', '0911122233', 'Tablet Samsung Galaxy', 'En revision'),
-('456789012345678', '0922233344', 'Smartphone Motorola G', 'En proceso'),
-('678901234567890', '0945678901', 'Pantalla táctil', 'En revision');
--- Asignación de técnicos a equipos
-INSERT INTO tb_tecnico_equipo (cedula_tecnico, imei_celular, id_tecnico, id_equipo, descripcion_equipo, estado, fecha_ingreso, id_cliente)
-VALUES 
-('0934567890', '123456789012345', 1, 1, 'APPLE 8', 'En revision', GETDATE(), 1),
-('0945678901', '123456789012345', 2, 1, 'REDMI', 'En revision', GETDATE(), 1),
-('0956789012', '123456789012345', 3, 1, 'Samsung', 'En revision', GETDATE(), 1),
-('0989012345', '345678901234567', 3, 3, 'Samsung', 'En revision', GETDATE(), 2);
--- Inserciones de datos en la tabla de reparaciones
-INSERT INTO tb_reparacion (cedula_cliente, imei_celular, id_cliente, id_equipo, descripcion_reparacion, costo, estado, fecha_ingreso)
-VALUES 
-('0912345678', '123456789012345', 1, 1, 'Reemplazo de batería', 50.00, 'En proceso', GETDATE()),
-('0912345678', '123456789012345', 1, 3, 'Reemplazo de cámara trasera', 85.00, 'En proceso', GETDATE()),
-('0945678901', '678901234567890', 2, 5, 'Reemplazo de pantalla táctil', 100.00, 'En proceso', GETDATE());
--- Inserciones de datos en la tabla de relación entre reparaciones y técnicos
-INSERT INTO tb_reparacion_tecnico (id_equipo, id_tecnico)
-VALUES 
-(1, 1),  -- Técnico 1
-(1, 2),  -- Técnico 2
-(2, 3);  -- Técnico 3
--- Relación de técnico con reparación en otro registro
-INSERT INTO tb_reparacion_tecnico (id_equipo, id_tecnico)
-VALUES 
-(3, 4);  -- Técnico 4
--- Inserción de datos en la tabla tb_factura
-INSERT INTO tb_factura (
-    id_cliente, cedula_cliente, nombre_cliente, telefono_cliente, email_cliente,
-    id_tecnico, cedula_tecnico, nombre_tecnico, telefono_tecnico, email_tecnico,
-    id_equipo, imei_celular, descripcion_equipo, estado, fecha_ingreso,
-    id_reparacion, descripcion_reparacion, costo, fecha_entrega, tecnicos
-)VALUES (
-    1, '0912345678', 'Juan Pérez', '0987654321', 'juan.perez@gmail.com',
-    1, '0934567890', 'Luis Rivera', '0999123456', 'luis.rivera@gmail.com',
-    1, '123456789012345', 'Galaxy 12', 'En revision', GETDATE(),
-    1, 'Reemplazo de batería', 50.00, '13/01/2025', 'Luis Rivera, María Sánchez');
-INSERT INTO tb_factura (
-    id_cliente, cedula_cliente, nombre_cliente, telefono_cliente, email_cliente,
-    id_tecnico, cedula_tecnico, nombre_tecnico, telefono_tecnico, email_tecnico,
-    id_equipo, imei_celular, descripcion_equipo, estado, fecha_ingreso,
-    id_reparacion, descripcion_reparacion, costo, fecha_entrega, tecnicos
-)VALUES (
-    2, '0923456789', 'Ana Torres', '0998765432', 'ana.torres@gmail.com',
-    3, '0956789012', 'Javier Torres', '0993344556', 'javier.torres@gmail.com',
-    2, '234567890123456', 'Nokia L3150', 'Reparado', GETDATE(),
-    2, 'Reemplazo de cámara trasera', 85.00, '13/01/2025', 'Javier Torres'
-);
-INSERT INTO tb_factura (
-    id_cliente, cedula_cliente, nombre_cliente, telefono_cliente, email_cliente,
-    id_tecnico, cedula_tecnico, nombre_tecnico, telefono_tecnico, email_tecnico,
-    id_equipo, imei_celular, descripcion_equipo, estado, fecha_ingreso,
-    id_reparacion, descripcion_reparacion, costo, fecha_entrega, tecnicos
-)VALUES (
-    3, '0911122233', 'Carlos López', '0991122334', 'carlos.lopez@gmail.com',
-    4, '0989012345', 'Carlos Gómez', '0998765432', 'carlos.gomez@gmail.com',
-    3, '345678901234567', 'Tablet Samsung Galaxy', 'En revision', GETDATE(),
-    3, 'Reemplazo de pantalla táctil', 100.00, '13/01/2025', 'Carlos Gomez'
+CREATE TABLE Usuarios (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    username NVARCHAR(50) NOT NULL UNIQUE,
+    password NVARCHAR(256) NOT NULL
 );
 
--- Insertar servicios de ejemplo
-INSERT INTO tb_servicios (descripcion_servicio, costo_servicio)
-VALUES 
-('Diagnóstico básico', 10.00),
-('Reparación de pantalla', 50.00),
-('Cambio de batería', 30.00),
-('Reparación de cámara', 40.00),
-('Limpieza interna', 15.00),
-('Actualización de software', 20.00),
-('Recuperación de datos', 35.00);
-SELECT * FROM tb_cliente;
-SELECT * FROM tb_tecnico;
-SELECT * FROM tb_equipo_Movil;
-SELECT * FROM tb_reparacion;
-SELECT * FROM tb_tecnico_equipo;
-SELECT * FROM tb_factura;
-SELECT * FROM tb_repuestos;
-SELECT * FROM tb_servicios;
-
+-- ================================
+-- PROCEDIMIENTOS ALMACENADOS
+-- ================================
 GO
 CREATE PROCEDURE SP_INSERT_EQUIPO
     @IMEI VARCHAR(15),
@@ -1715,6 +1623,191 @@ GRANT SELECT ON dbo.tb_reparacion_repuestos TO [db_usuario];
 GRANT SELECT ON dbo.Usuarios TO [db_usuario];
 
 -- Permitir al usuario ejecutar procedimientos almacenados de consulta (solo SELECT)
+GRANT EXECUTE ON dbo.SP_GET_CLIENTES TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_GET_TECNICOS TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_GET_EQUIPOS_MOVILES TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_GET_EQUIPOS TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_GET_SERVICIOS TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_GET_REPUESTOS TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_GET_REPARACIONES TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_GET_TODAS_FACTURAS TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_GET_FACTURAS TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_GET_FACTURAS_POR_CEDULA_CLIENTE TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_GET_CEDULAS_CLIENTE TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_GET_CEDULAS_TECNICO TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_GET_CEDULAS_PERSONA TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_GET_CLIENTE_POR_CEDULA TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_GET_TECNICO_POR_CEDULA TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_GET_DATOS_PERSONALES_CLIENTE TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_GET_DATOS_PERSONALES_TECNICO TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_GET_EQUIPO_MOVIL_CLIENTE TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_GET_ESTADO_EQUIPO_ESPECIFICO TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_OBTENER_EQUIPO_ESTADO_CLIENTE TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_GET_DETALLES_EQUIPO TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_VALIDAR_ID_EQUIPO TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_OBTENER_EQUIPOS_ASIGNADOS TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_OBTENER_TECNICOS_REPARACION_PAGINADO TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_OBTENER_TECNICOS_REPARACION TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_EXISTE_REPARACION TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_EXISTE_FACTURA TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_EXISTE_USUARIO TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_GET_REPUESTOS_FACTURA TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_OBTENER_REPUESTOS_POR_EQUIPO TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_CALCULAR_COSTO_TOTAL_FACTURA TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_RECALCULAR_REPUESTOS TO [db_usuario];
+GRANT EXECUTE ON dbo.SP_OBTENER_ULTIMO_ID_REPARACION TO [db_usuario];
+GRANT EXECUTE ON dbo.sp_ValidarUsuario TO [db_usuario];
+
+-- Crear logins de SQL Server
+CREATE LOGIN [admin_reparaciones] WITH PASSWORD = 'AdminPass123!';
+CREATE LOGIN [consulta_reparaciones] WITH PASSWORD = 'ConsultaPass123!';
+CREATE LOGIN [app_reparaciones] WITH PASSWORD = 'AppPass123!';
+
+-- Crear usuarios de base de datos y asignar roles
+CREATE USER [admin_reparaciones] FOR LOGIN [admin_reparaciones];
+ALTER ROLE [db_administrador] ADD MEMBER [admin_reparaciones];
+
+CREATE USER [consulta_reparaciones] FOR LOGIN [consulta_reparaciones];
+ALTER ROLE [db_usuario] ADD MEMBER [consulta_reparaciones];
+
+CREATE USER [app_reparaciones] FOR LOGIN [app_reparaciones];
+ALTER ROLE [db_administrador] ADD MEMBER [app_reparaciones];
+
+-- Verificar roles y usuarios creados
+SELECT 
+    r.name AS RoleName,
+    m.name AS MemberName
+FROM sys.database_role_members rm
+JOIN sys.database_principals r ON rm.role_principal_id = r.principal_id
+JOIN sys.database_principals m ON rm.member_principal_id = m.principal_id
+WHERE r.name IN ('db_administrador', 'db_usuario');
+
+-- Verificar logins creados
+SELECT 
+    name AS LoginName,
+    type_desc AS LoginType,
+    create_date AS CreateDate
+FROM sys.server_principals
+WHERE name IN ('admin_reparaciones', 'consulta_reparaciones', 'app_reparaciones');
+
+-- Verificar usuarios de base de datos creados
+SELECT 
+    name AS UserName,
+    type_desc AS UserType,
+    create_date AS CreateDate
+FROM sys.database_principals
+WHERE name IN ('admin_reparaciones', 'consulta_reparaciones', 'app_reparaciones');
+
+GO
+
+-- ================================
+-- INSERCIÓN DE DATOS
+-- ================================
+-- Inserción de clientes
+INSERT INTO tb_cliente (cedula_cliente, nombre_cliente, telefono_cliente, email_cliente)
+VALUES 
+('0912345678', 'Juan Pérez', '0987654321', 'juan.perez@gmail.com'),
+('0923456789', 'Ana Torres', '0998765432', 'ana.torres@gmail.com'),
+('0911122233', 'Carlos López', '0991122334', 'carlos.lopez@gmail.com'),
+('0922233344', 'Daniela Martínez', '0992233445', 'daniela.martinez@gmail.com'),
+('0945678901', 'Cliente Ejemplo', '0990000000', 'cliente.ejemplo@gmail.com');
+
+-- Inserción de técnicos
+INSERT INTO tb_tecnico (cedula_tecnico, nombre_tecnico, telefono_tecnico, email_tecnico)
+VALUES 
+('0934567890', 'Luis Rivera', '0999123456', 'luis.rivera@gmail.com'),
+('0945678901', 'María Sánchez', '0987654321', 'maria.sanchez@gmail.com'),
+('0956789012', 'Javier Torres', '0993344556', 'javier.torres@gmail.com'),
+('0989012345', 'Carlos Gómez', '0998765432', 'carlos.gomez@gmail.com');
+
+-- Inserción de equipos móviles
+INSERT INTO tb_equipo_Movil (imei_celular, cedula_cliente, descripcion_equipo, estado)
+VALUES 
+('123456789012345', '0912345678', 'Galaxy 12', 'En revision'),
+('234567890123456', '0923456789', 'Nokia L3150', 'Reparado'),
+('345678901234567', '0911122233', 'Tablet Samsung Galaxy', 'En revision'),
+('456789012345678', '0922233344', 'Smartphone Motorola G', 'En proceso'),
+('678901234567890', '0945678901', 'Pantalla táctil', 'En revision');
+
+-- Asignación de técnicos a equipos
+INSERT INTO tb_tecnico_equipo (cedula_tecnico, imei_celular, id_tecnico, id_equipo, descripcion_equipo, estado, fecha_ingreso, id_cliente)
+VALUES 
+('0934567890', '123456789012345', 1, 1, 'APPLE 8', 'En revision', GETDATE(), 1),
+('0945678901', '123456789012345', 2, 1, 'REDMI', 'En revision', GETDATE(), 1),
+('0956789012', '123456789012345', 3, 1, 'Samsung', 'En revision', GETDATE(), 1),
+('0989012345', '345678901234567', 3, 3, 'Samsung', 'En revision', GETDATE(), 2);
+
+-- Inserción de reparaciones
+INSERT INTO tb_reparacion (cedula_cliente, imei_celular, id_cliente, id_equipo, descripcion_reparacion, costo, estado, fecha_ingreso)
+VALUES 
+('0912345678', '123456789012345', 1, 1, 'Reemplazo de batería', 50.00, 'En proceso', GETDATE()),
+('0912345678', '123456789012345', 1, 3, 'Reemplazo de cámara trasera', 85.00, 'En proceso', GETDATE()),
+('0945678901', '678901234567890', 2, 5, 'Reemplazo de pantalla táctil', 100.00, 'En proceso', GETDATE());
+
+-- Inserción de relaciones reparación-técnico
+INSERT INTO tb_reparacion_tecnico (id_equipo, id_tecnico)
+VALUES 
+(1, 1), (1, 2), (2, 3), (3, 4);
+
+-- Inserción de facturas
+INSERT INTO tb_factura (
+    id_cliente, cedula_cliente, nombre_cliente, telefono_cliente, email_cliente,
+    id_tecnico, cedula_tecnico, nombre_tecnico, telefono_tecnico, email_tecnico,
+    id_equipo, imei_celular, descripcion_equipo, estado, fecha_ingreso,
+    id_reparacion, descripcion_reparacion, costo, fecha_entrega, tecnicos
+)VALUES 
+(1, '0912345678', 'Juan Pérez', '0987654321', 'juan.perez@gmail.com',
+ 1, '0934567890', 'Luis Rivera', '0999123456', 'luis.rivera@gmail.com',
+ 1, '123456789012345', 'Galaxy 12', 'En revision', GETDATE(),
+ 1, 'Reemplazo de batería', 50.00, '13/01/2025', 'Luis Rivera, María Sánchez'),
+(2, '0923456789', 'Ana Torres', '0998765432', 'ana.torres@gmail.com',
+ 3, '0956789012', 'Javier Torres', '0993344556', 'javier.torres@gmail.com',
+ 2, '234567890123456', 'Nokia L3150', 'Reparado', GETDATE(),
+ 2, 'Reemplazo de cámara trasera', 85.00, '13/01/2025', 'Javier Torres'),
+(3, '0911122233', 'Carlos López', '0991122334', 'carlos.lopez@gmail.com',
+ 4, '0989012345', 'Carlos Gómez', '0998765432', 'carlos.gomez@gmail.com',
+ 3, '345678901234567', 'Tablet Samsung Galaxy', 'En revision', GETDATE(),
+ 3, 'Reemplazo de pantalla táctil', 100.00, '13/01/2025', 'Carlos Gomez');
+
+-- Inserción de servicios
+INSERT INTO tb_servicios (descripcion_servicio, costo_servicio)
+VALUES 
+('Diagnóstico básico', 10.00),
+('Reparación de pantalla', 50.00),
+('Cambio de batería', 30.00),
+('Reparación de cámara', 40.00),
+('Limpieza interna', 15.00),
+('Actualización de software', 20.00),
+('Recuperación de datos', 35.00);
+
+-- Inserción de usuario inicial
+EXEC sp_InsertarUsuario @username = 'leslie', @password = '22';
+
+-- ================================
+-- CREACIÓN DE ROLES Y PERMISOS
+-- ================================
+-- Crear roles de base de datos
+CREATE ROLE [db_administrador];
+CREATE ROLE [db_usuario];
+
+-- Asignar permisos al rol administrador
+GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::dbo TO [db_administrador];
+GRANT EXECUTE ON SCHEMA::dbo TO [db_administrador];
+
+-- Asignar permisos al rol usuario
+GRANT SELECT ON dbo.tb_cliente TO [db_usuario];
+GRANT SELECT ON dbo.tb_tecnico TO [db_usuario];
+GRANT SELECT ON dbo.tb_equipo_Movil TO [db_usuario];
+GRANT SELECT ON dbo.tb_reparacion TO [db_usuario];
+GRANT SELECT ON dbo.tb_tecnico_equipo TO [db_usuario];
+GRANT SELECT ON dbo.tb_reparacion_tecnico TO [db_usuario];
+GRANT SELECT ON dbo.tb_factura TO [db_usuario];
+GRANT SELECT ON dbo.tb_repuestos TO [db_usuario];
+GRANT SELECT ON dbo.tb_servicios TO [db_usuario];
+GRANT SELECT ON dbo.tb_reparacion_repuestos TO [db_usuario];
+GRANT SELECT ON dbo.Usuarios TO [db_usuario];
+
+-- Permitir al usuario ejecutar procedimientos almacenados de consulta
 GRANT EXECUTE ON dbo.SP_GET_CLIENTES TO [db_usuario];
 GRANT EXECUTE ON dbo.SP_GET_TECNICOS TO [db_usuario];
 GRANT EXECUTE ON dbo.SP_GET_EQUIPOS_MOVILES TO [db_usuario];
