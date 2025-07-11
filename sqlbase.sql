@@ -1,10 +1,11 @@
---CREATE DATABASE DB_Reparaciones;
+-- ================================
+-- PASO 1: CREACIÓN Y CONFIGURACIÓN DE BASE DE DATOS
+-- ================================
+CREATE DATABASE DB_Reparaciones;
 --DROP DATABASE DB_Reparaciones;
 
--- Usar la base de datos
 USE DB_Reparaciones;
 
--- Configurar opciones de la base de datos
 ALTER DATABASE DB_Reparaciones SET RECOVERY FULL;
 ALTER DATABASE DB_Reparaciones SET AUTO_SHRINK OFF;
 ALTER DATABASE DB_Reparaciones SET AUTO_UPDATE_STATISTICS ON;
@@ -13,19 +14,29 @@ ALTER DATABASE DB_Reparaciones SET TRUSTWORTHY ON;
 PRINT 'Configuración de base de datos completada.';
 
 -- ================================
--- ELIMINACIÓN DE TABLAS EXISTENTES
+-- PASO 2: ELIMINACIÓN DE TABLAS EXISTENTES (ORDEN INVERSO A LAS DEPENDENCIAS)
 -- ================================
+DROP TABLE IF EXISTS tb_reparacion_repuestos;
 DROP TABLE IF EXISTS tb_tecnico_equipo;
+DROP TABLE IF EXISTS tb_reparacion_tecnico;
+DROP TABLE IF EXISTS tb_factura;
 DROP TABLE IF EXISTS tb_reparacion;
 DROP TABLE IF EXISTS tb_equipo_Movil;
+DROP TABLE IF EXISTS tb_repuestos;
+DROP TABLE IF EXISTS tb_servicios;
 DROP TABLE IF EXISTS tb_tecnico;
 DROP TABLE IF EXISTS tb_cliente;
-DROP TABLE IF EXISTS tb_reparacion_repuestos;
-DROP TABLE IF EXISTS tb_repuestos;
+DROP TABLE IF EXISTS Usuarios;
 
 -- ================================
--- CREACIÓN DE TABLAS
+-- PASO 3: CREACIÓN DE TABLAS BASE (SIN DEPENDENCIAS)
 -- ================================
+CREATE TABLE Usuarios (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    username NVARCHAR(50) NOT NULL UNIQUE,
+    password NVARCHAR(256) NOT NULL
+);
+
 CREATE TABLE tb_cliente (
     id_cliente INT IDENTITY(1,1) PRIMARY KEY, 
     cedula_cliente VARCHAR(10) UNIQUE NOT NULL, 
@@ -42,6 +53,23 @@ CREATE TABLE tb_tecnico (
     email_tecnico VARCHAR(50)
 );
 
+CREATE TABLE tb_servicios (
+    id_servicio INT IDENTITY(1,1) PRIMARY KEY,
+    descripcion_servicio NVARCHAR(255) NOT NULL,
+    costo_servicio DECIMAL(10,2) NOT NULL CHECK (costo_servicio >= 0)
+);
+
+CREATE TABLE tb_repuestos (
+    id_repuesto INT IDENTITY(1,1) PRIMARY KEY,
+    descripcion_repuesto NVARCHAR(255) NOT NULL,
+    cantidad_repuesto INT NOT NULL CHECK (cantidad_repuesto > 0),
+    costo_individual DECIMAL(10,2) NOT NULL CHECK (costo_individual >= 0),
+    costo_total_repuesto AS (cantidad_repuesto * costo_individual) PERSISTED
+);
+
+-- ================================
+-- PASO 4: CREACIÓN DE TABLAS CON DEPENDENCIAS NIVEL 1
+-- ================================
 CREATE TABLE tb_equipo_Movil (
     id_equipo INT IDENTITY(1,1) PRIMARY KEY, 
     imei_celular VARCHAR(15) UNIQUE NOT NULL, 
@@ -52,6 +80,9 @@ CREATE TABLE tb_equipo_Movil (
     FOREIGN KEY (cedula_cliente) REFERENCES tb_cliente(cedula_cliente)
 );
 
+-- ================================
+-- PASO 5: CREACIÓN DE TABLAS CON DEPENDENCIAS NIVEL 2
+-- ================================
 CREATE TABLE tb_reparacion (
     id_reparacion INT IDENTITY(1,1) PRIMARY KEY,
     cedula_cliente VARCHAR(10) NOT NULL,
@@ -60,7 +91,7 @@ CREATE TABLE tb_reparacion (
     costo DECIMAL(10,2) DEFAULT 0 CHECK (costo >= 0),
     estado VARCHAR(20),
     fecha_ingreso DATETIME,
-    fecha_entrega VARCHAR(10) DEFAULT '13/01/2025',
+    fecha_entrega VARCHAR(10) DEFAULT '30/07/2025',
     id_equipo INT, 
     id_cliente INT,
     id_servicio INT NOT NULL,
@@ -69,6 +100,7 @@ CREATE TABLE tb_reparacion (
     FOREIGN KEY (id_equipo) REFERENCES tb_equipo_Movil(id_equipo),
     FOREIGN KEY (id_cliente) REFERENCES tb_cliente(id_cliente),
     FOREIGN KEY (id_servicio) REFERENCES tb_servicios(id_servicio)
+);
 
 CREATE TABLE tb_reparacion_tecnico (
     id_equipo INT NOT NULL,
@@ -94,6 +126,17 @@ CREATE TABLE tb_tecnico_equipo (
     FOREIGN KEY (cedula_tecnico) REFERENCES tb_tecnico(cedula_tecnico) ON DELETE NO ACTION
 );
 
+CREATE TABLE tb_reparacion_repuestos (
+    id_equipo INT NOT NULL,
+    id_repuesto INT NOT NULL,
+    PRIMARY KEY (id_equipo, id_repuesto),
+    FOREIGN KEY (id_equipo) REFERENCES tb_equipo_Movil(id_equipo),
+    FOREIGN KEY (id_repuesto) REFERENCES tb_repuestos(id_repuesto)
+);
+
+-- ================================
+-- PASO 6: CREACIÓN DE TABLAS CON DEPENDENCIAS NIVEL 3
+-- ================================
 CREATE TABLE tb_factura (
     id_factura INT IDENTITY(1,1) PRIMARY KEY,
     id_cliente INT,
@@ -122,36 +165,8 @@ CREATE TABLE tb_factura (
     FOREIGN KEY (id_reparacion) REFERENCES tb_reparacion(id_reparacion) ON DELETE NO ACTION
 );
 
-CREATE TABLE tb_repuestos (
-    id_repuesto INT IDENTITY(1,1) PRIMARY KEY,
-    descripcion_repuesto NVARCHAR(255) NOT NULL,
-    cantidad_repuesto INT NOT NULL CHECK (cantidad_repuesto > 0),
-    costo_individual DECIMAL(10,2) NOT NULL CHECK (costo_individual >= 0),
-    costo_total_repuesto AS (cantidad_repuesto * costo_individual) PERSISTED
-);
-
-CREATE TABLE tb_servicios (
-    id_servicio INT IDENTITY(1,1) PRIMARY KEY,
-    descripcion_servicio NVARCHAR(255) NOT NULL,
-    costo_servicio DECIMAL(10,2) NOT NULL CHECK (costo_servicio >= 0)
-);
-
-CREATE TABLE tb_reparacion_repuestos (
-    id_equipo INT NOT NULL,
-    id_repuesto INT NOT NULL,
-    PRIMARY KEY (id_equipo, id_repuesto),
-    FOREIGN KEY (id_equipo) REFERENCES tb_equipo_Movil(id_equipo),
-    FOREIGN KEY (id_repuesto) REFERENCES tb_repuestos(id_repuesto)
-);
-
-CREATE TABLE Usuarios (
-    id INT IDENTITY(1,1) PRIMARY KEY,
-    username NVARCHAR(50) NOT NULL UNIQUE,
-    password NVARCHAR(256) NOT NULL
-);
-
 -- ================================
--- PROCEDIMIENTOS ALMACENADOS
+-- PASO 7: CREACIÓN DE PROCEDIMIENTOS ALMACENADOS
 -- ================================
 GO
 CREATE PROCEDURE SP_INSERT_EQUIPO
