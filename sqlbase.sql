@@ -1,4 +1,5 @@
---CREATE DATABASE DB_Reparaciones
+--CREATE DATABASE DB_Reparaciones;
+--DROP DATABASE DB_Reparaciones;
 
 -- Usar la base de datos
 USE DB_Reparaciones;
@@ -62,11 +63,12 @@ CREATE TABLE tb_reparacion (
     fecha_entrega VARCHAR(10) DEFAULT '13/01/2025',
     id_equipo INT, 
     id_cliente INT,
+    id_servicio INT NOT NULL,
     FOREIGN KEY (cedula_cliente) REFERENCES tb_cliente(cedula_cliente),
     FOREIGN KEY (imei_celular) REFERENCES tb_equipo_Movil(imei_celular),
     FOREIGN KEY (id_equipo) REFERENCES tb_equipo_Movil(id_equipo),
-    FOREIGN KEY (id_cliente) REFERENCES tb_cliente(id_cliente)
-);
+    FOREIGN KEY (id_cliente) REFERENCES tb_cliente(id_cliente),
+    FOREIGN KEY (id_servicio) REFERENCES tb_servicios(id_servicio)
 
 CREATE TABLE tb_reparacion_tecnico (
     id_equipo INT NOT NULL,
@@ -169,7 +171,8 @@ CREATE PROCEDURE SP_INSERT_REPARACION
 	@Cedula_cliente VARCHAR(10),
     @IMEI VARCHAR(15),
     @descripcion VARCHAR(255),
-    @costo DECIMAL(10,2)
+    @costo DECIMAL(10,2),
+    @id_servicio INT
 AS
 BEGIN
     DECLARE @estado_actual VARCHAR(20);
@@ -180,8 +183,8 @@ BEGIN
     FROM tb_equipo_Movil
     WHERE  imei_celular = @IMEI;
 
-    INSERT INTO tb_reparacion (cedula_cliente, imei_celular, id_cliente, id_equipo, descripcion_reparacion, costo, estado, fecha_ingreso)
-    VALUES (@Cedula_Cliente, @IMEI, @Codigo_cliente, @Codigo_equipo, @descripcion, @costo, @estado_actual, @fecha_ingreso_actual);
+    INSERT INTO tb_reparacion (cedula_cliente, imei_celular, id_cliente, id_equipo, descripcion_reparacion, costo, estado, fecha_ingreso, id_servicio)
+    VALUES (@Cedula_Cliente, @IMEI, @Codigo_cliente, @Codigo_equipo, @descripcion, @costo, @estado_actual, @fecha_ingreso_actual, @id_servicio);
 END;
 GO
 
@@ -421,16 +424,16 @@ END;
 GO
 CREATE PROCEDURE SP_UPDATE_REPARACION
     @Codigo_reparacion INT,
-    @nueva_descripcion VARCHAR(255) = NULL, -- Parámetro opcional
-    @nuevo_costo DECIMAL(10,2) = NULL, -- Parámetro opcional
+    @nueva_descripcion VARCHAR(255) = NULL,
+    @nuevo_costo DECIMAL(10,2) = NULL,
     @nuevo_estado VARCHAR(20),
     @nueva_fecha_ingreso DATETIME,
     @nueva_fecha_entrega VARCHAR(10),
-    @nuevos_tecnicos NVARCHAR(MAX) -- Lista de técnicos en formato JSON o separados por comas
+    @nuevos_tecnicos NVARCHAR(MAX),
+    @nuevo_id_servicio INT = NULL
 AS
 BEGIN
     BEGIN TRY
-        -- Inicio de transacción
         BEGIN TRANSACTION;
 
         DECLARE @IMEI VARCHAR(15);
@@ -450,6 +453,13 @@ BEGIN
         BEGIN
             UPDATE tb_reparacion
             SET costo = @nuevo_costo
+            WHERE id_reparacion = @Codigo_reparacion;
+        END;
+
+        IF @nuevo_id_servicio IS NOT NULL
+        BEGIN
+            UPDATE tb_reparacion
+            SET id_servicio = @nuevo_id_servicio
             WHERE id_reparacion = @Codigo_reparacion;
         END;
 
@@ -476,23 +486,19 @@ BEGIN
             DECLARE @TecnicoId INT;
             DECLARE @TecnicosCursor CURSOR;
 
-            -- Convertir la lista de IDs (separada por comas) en un cursor
             SET @TecnicosCursor = CURSOR FOR
             SELECT value FROM STRING_SPLIT(@nuevos_tecnicos, ',');
 
             OPEN @TecnicosCursor;
-
             FETCH NEXT FROM @TecnicosCursor INTO @TecnicoId;
 
             WHILE @@FETCH_STATUS = 0
             BEGIN
-                -- Insertar cada técnico asociado a la reparación
                 INSERT INTO tb_reparacion_tecnico (id_equipo, id_tecnico)
                 VALUES (
                     (SELECT id_equipo FROM tb_reparacion WHERE id_reparacion = @Codigo_reparacion),
                     @TecnicoId
                 );
-
                 FETCH NEXT FROM @TecnicosCursor INTO @TecnicoId;
             END;
 
@@ -500,16 +506,10 @@ BEGIN
             DEALLOCATE @TecnicosCursor;
         END;
 
-        -- Confirmar transacción
         COMMIT TRANSACTION;
-
-        PRINT 'Reparación actualizada correctamente con los técnicos asignados.';
     END TRY
     BEGIN CATCH
-        -- Revertir transacción en caso de error
         ROLLBACK TRANSACTION;
-
-        PRINT 'Error al actualizar la reparación. Transacción revertida.';
         THROW;
     END CATCH;
 END;
@@ -551,6 +551,9 @@ BEGIN
         r.fecha_entrega,
         r.id_equipo,
         r.id_cliente,
+        r.id_servicio,
+        s.descripcion_servicio,
+        s.costo_servicio,
         -- Datos del cliente
         c.nombre_cliente,
         c.telefono_cliente,
@@ -564,11 +567,13 @@ BEGIN
     FROM 
         tb_reparacion r
     LEFT JOIN 
-        tb_reparacion_tecnico rt ON r.id_equipo = r.id_equipo
+        tb_reparacion_tecnico rt ON r.id_equipo = rt.id_equipo
     LEFT JOIN 
         tb_tecnico t ON rt.id_tecnico = t.id_tecnico
     LEFT JOIN 
-        tb_cliente c ON r.cedula_cliente = c.cedula_cliente;
+        tb_cliente c ON r.cedula_cliente = c.cedula_cliente
+    LEFT JOIN
+        tb_servicios s ON r.id_servicio = s.id_servicio;
 END;
 GO
 CREATE PROCEDURE SP_GET_TECNICOS
@@ -957,8 +962,7 @@ BEGIN
     DECLARE @Inicio INT;
     SET @Inicio = (@Pagina - 1) * @TecnicosPorPagina;
 
-    -- Selecciona los técnicos asignados a una reparación con paginación
-    SELECT r.id_equipo,  -- Cambio aquí para mostrar el id_equipo
+    SELECT r.id_equipo,
            r.descripcion_reparacion, 
            r.estado, 
            t.id_tecnico,   
@@ -970,7 +974,7 @@ BEGIN
     INNER JOIN tb_reparacion_tecnico rt ON r.id_equipo = rt.id_equipo  
     INNER JOIN tb_tecnico t ON rt.id_tecnico = t.id_tecnico
     WHERE r.id_equipo = @Id_Equipo
-    ORDER BY t.id_tecnico  -- Puedes ordenar por cualquier campo que sea adecuado
+    ORDER BY t.id_tecnico
     OFFSET @Inicio ROWS 
     FETCH NEXT @TecnicosPorPagina ROWS ONLY;
 END;
@@ -1047,7 +1051,10 @@ BEGIN
         @costo DECIMAL(10,2),
         @fecha_entrega VARCHAR(10),
         @Tecnicos NVARCHAR(MAX),
-        @id_reparacion INT;  -- Variable para almacenar el id de la reparación
+        @id_reparacion INT,
+        @id_servicio INT,
+        @descripcion_servicio VARCHAR(255),
+        @costo_servicio DECIMAL(10,2);
 
     -- Obtener datos del cliente
     SELECT 
@@ -1065,16 +1072,24 @@ BEGIN
     FROM tb_equipo_Movil
     WHERE id_equipo = @id_equipo;
 
-    -- Obtener datos de la reparación, asociada al equipo
+    -- Obtener datos de la reparación y servicio
     SELECT 
-        @id_reparacion = id_reparacion,  -- Asignamos id_reparacion desde la tabla de reparaciones
+        @id_reparacion = id_reparacion,
         @descripcion_reparacion = descripcion_reparacion,
         @estado = estado,
         @fecha_ingreso = fecha_ingreso,
         @fecha_entrega = fecha_entrega,
-        @costo = costo
+        @costo = costo,
+        @id_servicio = id_servicio
     FROM tb_reparacion
     WHERE id_equipo = @id_equipo;
+
+    -- Obtener datos del servicio
+    SELECT
+        @descripcion_servicio = descripcion_servicio,
+        @costo_servicio = costo_servicio
+    FROM tb_servicios
+    WHERE id_servicio = @id_servicio;
 
     -- Obtener la lista de técnicos asociados a la reparación
     SET @Tecnicos = '';
@@ -1089,24 +1104,20 @@ BEGIN
 
     WHILE @@FETCH_STATUS = 0
     BEGIN
-        -- Validar si el técnico existe
         IF NOT EXISTS (SELECT 1 FROM tb_tecnico WHERE cedula_tecnico = @cedula_tecnico)
         BEGIN
-            PRINT 'El técnico con cédula ' + @cedula_tecnico + ' no existe. Proceso abortado.';
             CLOSE TecnicoCursor;
             DEALLOCATE TecnicoCursor;
             RETURN;
         END
 
-        -- Concatenar los datos del técnico si existe
-        SET @Tecnicos = @Tecnicos + @cedula_tecnico + ' (' + @nombre_tecnico + '), '; 
+        SET @Tecnicos = @Tecnicos + @cedula_tecnico + ' (' + @nombre_tecnico + '), ';
         FETCH NEXT FROM TecnicoCursor INTO @cedula_tecnico, @nombre_tecnico;
     END
 
     CLOSE TecnicoCursor;
     DEALLOCATE TecnicoCursor;
 
-    -- Eliminar la última coma y espacio
     SET @Tecnicos = RTRIM(LTRIM(SUBSTRING(@Tecnicos, 1, LEN(@Tecnicos) - 2)));
 
     -- Insertar en la tabla factura
@@ -1118,7 +1129,8 @@ BEGIN
     VALUES (
         @id_cliente, @cedula_cliente, @nombre_cliente, @telefono_cliente, @email_cliente,
         @id_equipo, @imei_celular, @descripcion_equipo, @estado, @fecha_ingreso,
-        @descripcion_reparacion, @costo, @fecha_entrega, @Tecnicos, @id_reparacion
+        @descripcion_reparacion + ' - Servicio: ' + @descripcion_servicio, 
+        @costo + @costo_servicio, @fecha_entrega, @Tecnicos, @id_reparacion
     );
 END;
 GO
@@ -1588,9 +1600,9 @@ BEGIN
 END;
 GO
 GO
-EXEC sp_InsertarUsuario @username = 'leslie', @password = '22';
+EXEC sp_InsertarUsuario @username = 'admin', @password = '123';
 GO
-EXEC sp_ValidarUsuario @username = 'leslie', @password = '22';
+EXEC sp_ValidarUsuario @username = 'admin', @password = '123';
 
 GO
 SELECT * FROM Usuarios;
@@ -1738,11 +1750,11 @@ VALUES
 ('0989012345', '345678901234567', 3, 3, 'Samsung', 'En revision', GETDATE(), 2);
 
 -- Inserción de reparaciones
-INSERT INTO tb_reparacion (cedula_cliente, imei_celular, id_cliente, id_equipo, descripcion_reparacion, costo, estado, fecha_ingreso)
+INSERT INTO tb_reparacion (cedula_cliente, imei_celular, id_cliente, id_equipo, descripcion_reparacion, costo, estado, fecha_ingreso, id_servicio)
 VALUES 
-('0912345678', '123456789012345', 1, 1, 'Reemplazo de batería', 50.00, 'En proceso', GETDATE()),
-('0912345678', '123456789012345', 1, 3, 'Reemplazo de cámara trasera', 85.00, 'En proceso', GETDATE()),
-('0945678901', '678901234567890', 2, 5, 'Reemplazo de pantalla táctil', 100.00, 'En proceso', GETDATE());
+('0912345678', '123456789012345', 1, 1, 'Reemplazo de batería', 50.00, 'En proceso', GETDATE(), 3), -- Cambio de batería
+('0912345678', '123456789012345', 1, 3, 'Reemplazo de cámara trasera', 85.00, 'En proceso', GETDATE(), 4), -- Reparación de cámara
+('0945678901', '678901234567890', 2, 5, 'Reemplazo de pantalla táctil', 100.00, 'En proceso', GETDATE(), 2); -- Reparación de pantalla
 
 -- Inserción de relaciones reparación-técnico
 INSERT INTO tb_reparacion_tecnico (id_equipo, id_tecnico)
