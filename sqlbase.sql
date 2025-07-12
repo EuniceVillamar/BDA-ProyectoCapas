@@ -1911,3 +1911,23 @@ FROM sys.database_principals
 WHERE name IN ('admin_reparaciones', 'consulta_reparaciones', 'app_reparaciones');
 
 GO
+-- ================================
+--        USO DE CURSORES
+-- ================================
+GO
+DECLARE @NombreCliente VARCHAR(50);
+DECLARE cursor_clientes CURSOR FOR
+    SELECT nombre_cliente FROM tb_cliente;
+
+OPEN cursor_clientes;
+FETCH NEXT FROM cursor_clientes INTO @NombreCliente;
+
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    PRINT 'Nombre de cliente: ' + @NombreCliente;
+    FETCH NEXT FROM cursor_clientes INTO @NombreCliente;
+END
+
+CLOSE cursor_clientes;
+DEALLOCATE cursor_clientes;
+GO
